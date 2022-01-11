@@ -1,14 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net5.0</TargetFramework>
+		<Description>Hjelpemetoder og utvidelser for GML og geometrier til DiBK.RuleValidator</Description>
+		<Authors>Direktoratet for byggkvalitet (DiBK)</Authors>
+		<Copyright>Direktoratet for byggkvalitet (DiBK)</Copyright>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<RepositoryUrl>https://github.com/Arkitektum/DiBK.RuleValidator.Extensions.Gml</RepositoryUrl>
+		<Version>2.0.0-alpha</Version>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="DiBK.RuleValidator" Version="2.0.0-alpha.3" />
-    <PackageReference Include="DiBK.RuleValidator.Extensions" Version="2.0.0-alpha.5" />
-    <PackageReference Include="MaxRev.Gdal.Core" Version="3.3.3.110" />
-    <PackageReference Include="NetTopologySuite" Version="2.4.0" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="DiBK.RuleValidator" Version="2.0.0-alpha.3" />
+		<PackageReference Include="DiBK.RuleValidator.Extensions" Version="2.0.0-alpha.5" />
+		<PackageReference Include="MaxRev.Gdal.Core" Version="3.3.3.110" />
+		<PackageReference Include="NetTopologySuite" Version="2.4.0" />
+	</ItemGroup>
 
 </Project>
