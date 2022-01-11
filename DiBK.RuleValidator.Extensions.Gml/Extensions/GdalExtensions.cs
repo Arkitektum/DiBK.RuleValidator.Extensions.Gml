@@ -30,11 +30,11 @@ namespace DiBK.RuleValidator.Extensions.Gml
             return geometry.Within(other) && other.Within(geometry);
         }
 
-        public static bool TryCreateNtsGeometry(Geometry ogrGeometry, out NtsGeometry ntsGeometry)
+        public static bool TryCreateNtsGeometry(this Geometry geometry, out NtsGeometry ntsGeometry)
         {
             try
             {
-                using var forcedGeometry = ForceGeometry(ogrGeometry);
+                using var forcedGeometry = ForceGeometry(geometry);
                 var bytes = new byte[forcedGeometry.WkbSize()];
                 forcedGeometry.ExportToWkb(bytes);
                 ntsGeometry = new WKBReader().Read(bytes);

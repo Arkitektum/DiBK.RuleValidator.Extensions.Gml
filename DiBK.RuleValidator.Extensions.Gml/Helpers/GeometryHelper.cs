@@ -214,6 +214,15 @@ namespace DiBK.RuleValidator.Extensions.Gml
             return default;
         }
 
+        public static string ToWkt(Geometry geometry, int? decimals)
+        {
+            geometry.ExportToWkt(out var wkt);
+
+            if (decimals.HasValue && decimals.Value > 0)
+                return Regex.Replace(wkt, $@"(\d+\.\d{{{decimals}}})\d+", "$1");
+
+            return wkt;
+        }
 
         public static List<List<Geometry>> GetLineSegmentsOfPolygon(Geometry polygon)
         {
@@ -302,10 +311,7 @@ namespace DiBK.RuleValidator.Extensions.Gml
         {
             try
             {
-                var geometry = Geometry.CreateFromGML(geoElement.ToString());
-                var _ = geometry.IsValid();
-
-                return geometry;
+                return Geometry.CreateFromGML(geoElement.ToString());
             }
             catch (Exception exception)
             {
