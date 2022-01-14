@@ -1,27 +1,24 @@
 ﻿using NetTopologySuite.IO;
 using OSGeo.OGR;
+using System;
 using NtsGeometry = NetTopologySuite.Geometries.Geometry;
 
 namespace DiBK.RuleValidator.Extensions.Gml
 {
     public static class GdalExtensions
     {
-        public static double[] GetPoint(this Geometry geometry, int index)
-        {
-            var point = new double[3];
-            geometry.GetPoint(index, point);
-
-            return point;
-        }
-
         public static double[][] GetPoints(this Geometry geometry)
         {
             var pointCount = geometry.GetPointCount();
             var points = new double[pointCount][];
 
             for (int i = 0; i < pointCount; i++)
-                points[i] = GetPoint(geometry, i);
-
+            {
+                var point = new double[3];
+                geometry.GetPoint(i, point);
+                points[i] = point;
+            }
+            
             return points;
         }
 
@@ -30,14 +27,14 @@ namespace DiBK.RuleValidator.Extensions.Gml
             return geometry.Within(other) && other.Within(geometry);
         }
 
-        public static bool TryCreateNtsGeometry(this Geometry geometry, out NtsGeometry ntsGeometry)
+        public static bool TryConvertToNtsGeometry(this Geometry geometry, out NtsGeometry ntsGeometry, double maxAngleStepSizeDegrees = 0.01)
         {
             try
             {
-                using var forcedGeometry = ForceGeometry(geometry);
-                var bytes = new byte[forcedGeometry.WkbSize()];
-                forcedGeometry.ExportToWkb(bytes);
-                ntsGeometry = new WKBReader().Read(bytes);
+                var linearGeometry = geometry.GetLinearGeometry(maxAngleStepSizeDegrees, Array.Empty<string>());
+                linearGeometry.ExportToWkt(out var wkt);
+                ntsGeometry = new WKTReader().Read(wkt);
+
                 return true;
             }
             catch
@@ -45,21 +42,6 @@ namespace DiBK.RuleValidator.Extensions.Gml
                 ntsGeometry = null;
                 return false;
             }
-        }
-
-        private static Geometry ForceGeometry(Geometry geometry)
-        {
-            return geometry.GetGeometryType() switch
-            {
-                wkbGeometryType.wkbPoint or wkbGeometryType.wkbMultiPoint or wkbGeometryType.wkbLineString or
-                wkbGeometryType.wkbLinearRing or wkbGeometryType.wkbMultiLineString or wkbGeometryType.wkbPolygon or
-                wkbGeometryType.wkbMultiPolygon or wkbGeometryType.wkbGeometryCollection => geometry,
-                wkbGeometryType.wkbCircularString or wkbGeometryType.wkbCurve => Ogr.ForceToLineString(geometry),
-                wkbGeometryType.wkbMultiCurve => Ogr.ForceToMultiLineString(geometry),
-                wkbGeometryType.wkbSurface => Ogr.ForceToPolygon(geometry),
-                wkbGeometryType.wkbMultiSurface => Ogr.ForceToMultiPolygon(geometry),
-                _ => null
-            };
         }
     }
 }

@@ -97,15 +97,14 @@ namespace DiBK.RuleValidator.Extensions.Gml
             var fileName = !string.IsNullOrWhiteSpace(xlink[0]) ? xlink[0] : null;
             var gmlId = !string.IsNullOrWhiteSpace(xlink[1]) ? xlink[1] : null;
 
-
-
             return new XLink(fileName, gmlId);
         }
 
         public static XElement GetElementByXLink(IEnumerable<GmlDocument> documents, XLink xLink)
         {
             return documents
-                .SingleOrDefault(document => document.FileName == xLink.FileName)?.Document
+                .SingleOrDefault(document => document.FileName == xLink.FileName)?
+                .Document
                 .Descendants()
                 .SingleOrDefault(element => element.Attribute(GmlNs + "id")?.Value == xLink.GmlId);
         }

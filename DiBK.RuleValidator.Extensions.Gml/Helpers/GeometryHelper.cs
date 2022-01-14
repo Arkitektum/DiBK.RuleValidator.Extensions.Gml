@@ -1,5 +1,4 @@
-﻿using NetTopologySuite.IO;
-using NetTopologySuite.Operation.Valid;
+﻿using NetTopologySuite.Operation.Valid;
 using OSGeo.OGR;
 using System;
 using System.Collections.Generic;
@@ -84,6 +83,31 @@ namespace DiBK.RuleValidator.Extensions.Gml
             var points = GetCoordinates(element).ToArray();
 
             return CreatePolygon(points, epsg);
+        }
+
+        public static Geometry CreatePolygonFromRing(Geometry ring)
+        {
+            Geometry polygon = null;
+
+            if (ring.GetGeometryType() == wkbGeometryType.wkbCompoundCurve)
+            {
+                polygon = new Geometry(wkbGeometryType.wkbCurvePolygon);
+                polygon.AddGeometry(ring);
+            }
+            else if (ring.GetGeometryType() == wkbGeometryType.wkbLineString)
+            {
+                polygon = new Geometry(wkbGeometryType.wkbPolygon);
+                using var linearRing = new Geometry(wkbGeometryType.wkbLinearRing);
+
+                var points = ring.GetPoints();
+
+                foreach (var point in points)
+                    linearRing.AddPoint_2D(point[0], point[1]);
+
+                polygon.AddGeometry(linearRing);
+            }
+
+            return polygon;
         }
 
         public static Geometry GetFootprintOfSolid(XElement geoElement)
@@ -199,13 +223,12 @@ namespace DiBK.RuleValidator.Extensions.Gml
             return !outsidePoints.Any();
         }
 
-        public static (double X, double Y) DetectSelfIntersection(Geometry polygon)
+        public static (double X, double Y) DetectSelfIntersection(Geometry surface)
         {
-            polygon.ExportToWkt(out var wktString);
-
-            var wktReader = new WKTReader();
-            var geometry = wktReader.Read(wktString);
-            var validOperation = new IsValidOp(geometry);
+            if (!surface.TryConvertToNtsGeometry(out var ntsPolygon))
+                return default;
+            
+            var validOperation = new IsValidOp(ntsPolygon);
             var error = validOperation.ValidationError;
 
             if (error != null && (error.ErrorType == TopologyValidationErrors.RingSelfIntersection || error.ErrorType == TopologyValidationErrors.SelfIntersection))
@@ -321,15 +344,15 @@ namespace DiBK.RuleValidator.Extensions.Gml
 
         public static Geometry GetOrCreateGeometry(Dictionary<string, IndexedGeometry> geometryIndex, XElement geoElement, out string errorMessage)
         {
-            var gmlId = geoElement?.GetAttribute("gml:id");
+            var xPath = geoElement?.GetXPath();
 
-            if (gmlId == null)
+            if (xPath == null)
             {
                 errorMessage = "Ugyldig GML-element";
                 return null;
             }
 
-            if (geometryIndex.TryGetValue(gmlId, out var indexed))
+            if (geometryIndex.TryGetValue(xPath, out var indexed))
             {
                 errorMessage = indexed.ErrorMessage;
                 return indexed.Geometry?.Clone();
@@ -347,7 +370,7 @@ namespace DiBK.RuleValidator.Extensions.Gml
                 errorMessage = exception.Message;
             }
 
-            geometryIndex.Add(gmlId, new IndexedGeometry(gmlId, geometry, errorMessage));
+            geometryIndex.Add(xPath, new IndexedGeometry(xPath, geometry, errorMessage));
 
             return geometry?.Clone();
         }
