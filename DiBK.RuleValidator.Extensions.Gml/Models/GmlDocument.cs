@@ -9,6 +9,7 @@ namespace DiBK.RuleValidator.Extensions.Gml
     public class GmlDocument : ValidationDataElement, IDisposable
     {
         private List<XElement> _features;
+        private ILookup<string, XElement> _geometryElements;
         private readonly Dictionary<string, IndexedGeometry> _geometryIndex = new(25000);
         private readonly object geoLock = new();
         private bool _disposed = false;
@@ -19,7 +20,7 @@ namespace DiBK.RuleValidator.Extensions.Gml
 
         public GmlDocument(XDocument document, string fileName, object dataType) : base(document, fileName, dataType)
         {
-            LoadFeatures(document);
+            Initialize(document);
         }
 
         public List<XElement> GetFeatures(params string[] featureNames)
@@ -32,6 +33,20 @@ namespace DiBK.RuleValidator.Extensions.Gml
                 .ToList();
         }
 
+        public List<XElement> GetFeatureGeometryElements(params string[] geometryNames)
+        {
+            if (!geometryNames.Any())
+                return _geometryElements.SelectMany(element => element).ToList();
+
+            var geometryElements = new List<XElement>();
+
+            foreach (var geometryName in geometryNames)
+                if (_geometryElements.Contains(geometryName))
+                    geometryElements.AddRange(_geometryElements[geometryName]);
+
+            return geometryElements;
+        }
+
         public Geometry GetOrCreateGeometry(XElement geoElement, out string errorMessage)
         {
             lock (geoLock)
@@ -40,7 +55,7 @@ namespace DiBK.RuleValidator.Extensions.Gml
             }
         }
 
-        private void LoadFeatures(XDocument document)
+        private void Initialize(XDocument document)
         {
             var localName = document.Root.Elements()
                 .Any(element => element.Name.LocalName == "featureMember") ? "featureMember" : "featureMembers";
@@ -49,6 +64,10 @@ namespace DiBK.RuleValidator.Extensions.Gml
                 .Where(element => element.Name.LocalName == localName)
                 .SelectMany(element => element.Elements())
                 .ToList();
+
+            _geometryElements = _features
+                .SelectMany(GmlHelper.GetFeatureGeometryElements)
+                .ToLookup(element => element.Name.LocalName);
         }
 
         public void Dispose()
