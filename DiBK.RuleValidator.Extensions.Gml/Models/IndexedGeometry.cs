@@ -1,6 +1,5 @@
 ﻿using OSGeo.OGR;
 using System;
-using NtsGeometry = NetTopologySuite.Geometries.Geometry;
 
 namespace DiBK.RuleValidator.Extensions.Gml
 {
@@ -9,7 +8,6 @@ namespace DiBK.RuleValidator.Extensions.Gml
         private bool _disposed = false;
         public string GmlId { get; set; }
         public Geometry Geometry { get; set; }
-        public NtsGeometry NtsGeometry { get; set; }
         public string ErrorMessage { get; set; }
 
         public IndexedGeometry(string gmlId, Geometry geometry, string errorMessage)
