@@ -31,7 +31,7 @@ namespace DiBK.RuleValidator.Extensions.Gml
         {
             try
             {
-                var linearGeometry = geometry.GetLinearGeometry(maxAngleStepSizeDegrees, Array.Empty<string>());
+                using var linearGeometry = geometry.GetLinearGeometry(maxAngleStepSizeDegrees, Array.Empty<string>());
                 linearGeometry.ExportToWkt(out var wkt);
                 ntsGeometry = new WKTReader().Read(wkt);
 

@@ -8,7 +8,8 @@ namespace DiBK.RuleValidator.Extensions.Gml
 {
     public class GmlDocument : ValidationDataElement, IDisposable
     {
-        private List<XElement> _features;
+        private ILookup<string, XElement> _featureElements;
+        private ILookup<string, XElement> _gmlElements;
         private ILookup<string, XElement> _geometryElements;
         private readonly Dictionary<string, IndexedGeometry> _geometryIndex = new(25000);
         private readonly object geoLock = new();
@@ -23,28 +24,33 @@ namespace DiBK.RuleValidator.Extensions.Gml
             Initialize(document);
         }
 
-        public List<XElement> GetFeatures(params string[] featureNames)
+        public List<XElement> GetFeatureElements(params string[] featureNames)
         {
             if (!featureNames.Any())
-                return _features;
+                return _featureElements.SelectMany(element => element).ToList();
 
-            return _features
-                .Where(element => featureNames.Any(name => name == element.Name.LocalName))
-                .ToList();
+            var featureElements = new List<XElement>();
+
+            foreach (var featureName in featureNames)
+                if (_featureElements.Contains(featureName))
+                    featureElements.AddRange(_featureElements[featureName]);
+
+            return featureElements;
         }
 
         public List<XElement> GetFeatureGeometryElements(params string[] geometryNames)
         {
-            if (!geometryNames.Any())
-                return _geometryElements.SelectMany(element => element).ToList();
+            return GetGeometryElements(geometryNames, true);
+        }
 
-            var geometryElements = new List<XElement>();
+        public List<XElement> GetGeometryElements(params string[] geometryNames)
+        {
+            return GetGeometryElements(geometryNames, false);
+        }
 
-            foreach (var geometryName in geometryNames)
-                if (_geometryElements.Contains(geometryName))
-                    geometryElements.AddRange(_geometryElements[geometryName]);
-
-            return geometryElements;
+        public XElement GetElementByGmlId(string gmlId)
+        {
+            return _gmlElements[gmlId].SingleOrDefault();
         }
 
         public Geometry GetOrCreateGeometry(XElement geoElement, out string errorMessage)
@@ -53,21 +59,6 @@ namespace DiBK.RuleValidator.Extensions.Gml
             {
                 return GeometryHelper.GetOrCreateGeometry(_geometryIndex, geoElement, out errorMessage);
             }
-        }
-
-        private void Initialize(XDocument document)
-        {
-            var localName = document.Root.Elements()
-                .Any(element => element.Name.LocalName == "featureMember") ? "featureMember" : "featureMembers";
-
-            _features = document.Root.Elements()
-                .Where(element => element.Name.LocalName == localName)
-                .SelectMany(element => element.Elements())
-                .ToList();
-
-            _geometryElements = _features
-                .SelectMany(GmlHelper.GetFeatureGeometryElements)
-                .ToLookup(element => element.Name.LocalName);
         }
 
         public void Dispose()
@@ -91,6 +82,51 @@ namespace DiBK.RuleValidator.Extensions.Gml
 
                 _disposed = true;
             }
+        }
+
+        private List<XElement> GetGeometryElements(IEnumerable<string> geometryNames, bool featureGeometriesOnly)
+        {
+            if (!geometryNames.Any())
+            {
+                return _geometryElements.SelectMany(element => element)
+                    .Where(element => !featureGeometriesOnly || (element.Parent.Name.Namespace != element.Parent.GetNamespaceOfPrefix("gml")))
+                    .ToList();
+            }
+
+            var geometryElements = new List<XElement>();
+
+            foreach (var geometryName in geometryNames)
+            {
+                if (!_geometryElements.Contains(geometryName))
+                    continue;
+
+                var geometryElementsOfType = _geometryElements[geometryName]
+                    .Where(element => !featureGeometriesOnly || (element.Parent.Name.Namespace != element.Parent.GetNamespaceOfPrefix("gml")));
+
+                geometryElements.AddRange(geometryElementsOfType);
+            }
+
+            return geometryElements;
+        }
+
+        private void Initialize(XDocument document)
+        {
+            var localName = document.Root.Elements()
+                .Any(element => element.Name.LocalName == "featureMember") ? "featureMember" : "featureMembers";
+
+            _featureElements = document.Root.Elements()
+                .Where(element => element.Name.LocalName == localName)
+                .SelectMany(element => element.Elements())
+                .ToLookup(element => element.Name.LocalName);
+
+            _gmlElements = document.Descendants()
+                .Where(element => element.Attributes(GmlHelper.GmlNs + "id").Any())
+                .ToLookup(element => element.Attribute(GmlHelper.GmlNs + "id").Value);
+
+            _geometryElements = _gmlElements
+                .SelectMany(element => element)
+                .Where(element => GmlHelper.GeometryElementNames.Contains(element.Name.LocalName))
+                .ToLookup(element => element.Name.LocalName);
         }
 
         public static new GmlDocument Create(InputData data)

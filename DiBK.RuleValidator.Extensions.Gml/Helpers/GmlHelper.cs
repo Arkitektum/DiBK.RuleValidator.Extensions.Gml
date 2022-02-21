@@ -100,32 +100,11 @@ namespace DiBK.RuleValidator.Extensions.Gml
             return new XLink(fileName, gmlId);
         }
 
-        public static XElement GetElementByXLink(IEnumerable<GmlDocument> documents, XLink xLink)
-        {
-            return documents
-                .SingleOrDefault(document => document.FileName == xLink.FileName)?
-                .Document
-                .Descendants()
-                .SingleOrDefault(element => element.Attribute(GmlNs + "id")?.Value == xLink.GmlId);
-        }
-
-        public static XElement GetElementByGmlId(GmlDocument document, string gmlId)
-        {
-            if (document == null || gmlId == null)
-                return null;
-
-            XName name = GmlNs + "id";
-
-            return document.Document
-                .Descendants()
-                .SingleOrDefault(element => element.Attribute(name)?.Value == gmlId);
-        }
-
         public static XElement GetElementByGmlId(IEnumerable<GmlDocument> documents, string gmlId, string fileName)
         {
-            var document = documents.SingleOrDefault(document => document.FileName == fileName);
-
-            return GetElementByGmlId(document, gmlId);
+            return documents
+                .SingleOrDefault(document => document.FileName == fileName)
+                .GetElementByGmlId(gmlId);
         }
 
         public static string GetContext(XElement element)
