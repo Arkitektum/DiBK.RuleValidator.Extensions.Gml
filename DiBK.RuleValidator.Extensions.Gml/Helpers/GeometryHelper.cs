@@ -223,18 +223,38 @@ namespace DiBK.RuleValidator.Extensions.Gml
             return !outsidePoints.Any();
         }
 
-        public static (double X, double Y) DetectSelfIntersection(Geometry surface)
+        public static bool Overlaps(Geometry surface1, Geometry surface2)
+        {
+            if (!surface1.Intersects(surface2))
+                return false;
+
+            return !surface1.Within(surface2) && !surface2.Within(surface1);
+        }
+
+        public static Geometry DetectSelfIntersection(Geometry surface)
         {
             if (!surface.TryConvertToNtsGeometry(out var ntsPolygon))
-                return default;
+                return null;
             
             var validOperation = new IsValidOp(ntsPolygon);
             var error = validOperation.ValidationError;
 
             if (error != null && (error.ErrorType == TopologyValidationErrors.RingSelfIntersection || error.ErrorType == TopologyValidationErrors.SelfIntersection))
-                return (error.Coordinate.X, error.Coordinate.Y);
+            {
+                var point = new Geometry(wkbGeometryType.wkbPoint);
+                point.AddPoint_2D(error.Coordinate.X, error.Coordinate.Y);
+                return point;
+            }
 
-            return default;
+            return null;
+        }
+
+        public static string GetZoomToPoint(Geometry point)
+        {
+            var pointX = point.GetX(0).ToString(CultureInfo.InvariantCulture);
+            var pointY = point.GetY(0).ToString(CultureInfo.InvariantCulture);
+
+            return $"POINT ({pointX} {pointY})";
         }
 
         public static string ToWkt(Geometry geometry, int? decimals)
