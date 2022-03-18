@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using SpatialReference = OSGeo.OSR.SpatialReference;
+using DiBK.RuleValidator.Extensions.Gml.Models;
 
 namespace DiBK.RuleValidator.Extensions.Gml
 {
@@ -108,6 +109,18 @@ namespace DiBK.RuleValidator.Extensions.Gml
             }
 
             return polygon;
+        }
+
+        public static NetTopologySuite.Geometries.Geometry CreateEnvelope(Ring ring)
+        {
+            var points = ring.Segments
+                .SelectMany(segment => segment.Points)
+                .Select(point => new NetTopologySuite.Geometries.Point(point.X, point.Y))
+                .ToArray();
+
+            var multiPoint = new NetTopologySuite.Geometries.MultiPoint(points);
+
+            return multiPoint.Envelope;
         }
 
         public static Geometry GetFootprintOfSolid(XElement geoElement)
@@ -345,9 +358,115 @@ namespace DiBK.RuleValidator.Extensions.Gml
 
             return new Circle
             {
-                Center = new double[2] { cx, cy },
+                Center = new Point(cx, cy),
                 Radius = radius
             };
+        }
+
+        public static List<Surface> ConvertSegmentsToSurfaces(IEnumerable<Segment> segments)
+        {
+            var rings = new List<Ring> { new Ring() };
+            var firstSegment = segments.First();
+            var restSegments = segments.Skip(1).ToList();
+
+            rings.Last().Segments.Add(firstSegment);
+
+            while (restSegments.Any())
+            {
+                var lastPoint = rings.Last().Segments.Last().Points.Last();
+                var found = false;
+
+                foreach (var segment in restSegments)
+                {
+                    if (lastPoint.Equals(segment.Points.First()))
+                    {
+                        rings.Last().Segments.Add(segment);
+                        restSegments.Remove(segment);
+                        found = true;
+                        break;
+                    }
+                    else if (lastPoint.Equals(segment.Points.Last()))
+                    {
+                        var newSegment = new Segment { Points = Enumerable.Reverse(segment.Points).ToList(), Type = segment.Type };
+                        rings.Last().Segments.Add(newSegment);
+                        restSegments.Remove(segment);
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    var firstRestSegment = restSegments.First();
+                    rings.Add(new Ring(new List<Segment> { firstRestSegment }));
+                    restSegments.Remove(firstRestSegment);
+                }
+            }
+
+            List<Surface> surfaces;
+
+            if (rings.Count == 1)
+            {
+                var exterior = rings.Single();
+                exterior.IsExterior = true;
+                surfaces = new List<Surface> { new Surface { Exterior = exterior } };
+            }
+            else
+            {
+                surfaces = ConvertRingsToSurfaces(rings);
+            }
+
+            return surfaces;
+        }
+
+        public static List<Surface> ConvertRingsToSurfaces(List<Ring> rings)
+        {
+            foreach (var ring in rings)
+                ring.Envelope = CreateEnvelope(ring);
+
+            for (var i = 0; i < rings.Count; i++)
+            {
+                var ring = rings[i];
+                var otherRings = rings.Where(rng => rng != ring).ToList();
+
+                for (int j = 0; j < otherRings.Count; j++)
+                {
+                    var otherRing = otherRings[j];
+
+                    if (ring.Envelope.Within(otherRing.Envelope))
+                        rings.SingleOrDefault(rng => rng == ring).WithinRings.Add(otherRing);
+                }
+            }
+
+            foreach (var ring in rings)
+            {
+                ring.IsExterior = ring.WithinRings.Count % 2 == 0;
+                ring.WithinRings.RemoveAll(ring => !ring.IsExterior);
+            }
+
+            var surfaces = rings.Where(ring => ring.IsExterior).Select(ring => new Surface { Exterior = ring }).ToList();
+            var interiors = rings.Where(ring => !ring.IsExterior).OrderBy(ring => ring.WithinRings.Count);
+
+            foreach (var interior in interiors.ToList())
+            {
+                foreach (var ring in interior.WithinRings.ToList())
+                {
+                    var exterior = surfaces.SingleOrDefault(polygon => polygon.Exterior == ring);
+
+                    if (exterior == null)
+                        continue;
+
+                    exterior.Interior.Add(interior);
+                    interior.WithinRings.Remove(ring);
+
+                    interiors
+                        .Where(interior => interior.WithinRings.Count > 1)
+                        .ToList()
+                        .ForEach(interior => interior.WithinRings.Remove(ring));
+                }
+            }
+
+            return surfaces;
         }
 
         public static Geometry GeometryFromGML(XElement geoElement)
