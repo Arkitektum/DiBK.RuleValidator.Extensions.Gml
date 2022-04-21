@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using SpatialReference = OSGeo.OSR.SpatialReference;
 using DiBK.RuleValidator.Extensions.Gml.Models;
+using System.Collections.Concurrent;
 
 namespace DiBK.RuleValidator.Extensions.Gml
 {
@@ -481,7 +482,7 @@ namespace DiBK.RuleValidator.Extensions.Gml
             }
         }
 
-        public static Geometry GetOrCreateGeometry(Dictionary<string, IndexedGeometry> geometryIndex, XElement geoElement, out string errorMessage)
+        public static Geometry GetOrCreateGeometry(ConcurrentDictionary<string, IndexedGeometry> geometryIndex, XElement geoElement, out string errorMessage)
         {
             var xPath = geoElement?.GetXPath();
 
@@ -497,21 +498,12 @@ namespace DiBK.RuleValidator.Extensions.Gml
                 return indexed.Geometry?.Clone();
             }
 
-            Geometry geometry = null;
+            var newIndexed = IndexedGeometry.Create(geoElement);
             errorMessage = null;
 
-            try
-            {
-                geometry = GeometryFromGML(geoElement);
-            }
-            catch (GeometryFromGMLException exception)
-            {
-                errorMessage = exception.Message;
-            }
+            geometryIndex.AddOrUpdate(xPath, newIndexed, (xPath, indexed) => newIndexed);
 
-            geometryIndex.Add(xPath, new IndexedGeometry(xPath, geometry, errorMessage));
-
-            return geometry?.Clone();
+            return newIndexed.Geometry?.Clone();
         }
     }
 }

@@ -1,7 +1,9 @@
 ﻿using OSGeo.OGR;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Xml.Linq;
 
 namespace DiBK.RuleValidator.Extensions.Gml
@@ -11,8 +13,7 @@ namespace DiBK.RuleValidator.Extensions.Gml
         private ILookup<string, XElement> _featureElements;
         private ILookup<string, XElement> _gmlElements;
         private ILookup<string, XElement> _geometryElements;
-        private readonly Dictionary<string, IndexedGeometry> _geometryIndex = new(25000);
-        private readonly object geoLock = new();
+        private ConcurrentDictionary<string, IndexedGeometry> _geometryIndex;
         private bool _disposed = false;
 
         public GmlDocument(XDocument document, string fileName) : this(document, fileName, null)
@@ -55,10 +56,12 @@ namespace DiBK.RuleValidator.Extensions.Gml
 
         public Geometry GetOrCreateGeometry(XElement geoElement, out string errorMessage)
         {
-            lock (geoLock)
-            {
-                return GeometryHelper.GetOrCreateGeometry(_geometryIndex, geoElement, out errorMessage);
-            }
+            return GeometryHelper.GetOrCreateGeometry(_geometryIndex, geoElement, out errorMessage);
+        }
+
+        public IEnumerable<IndexedGeometry> GetIndexedGeometries()
+        {
+            return _geometryIndex.Select(kvp => kvp.Value);
         }
 
         public void Dispose()
@@ -127,6 +130,22 @@ namespace DiBK.RuleValidator.Extensions.Gml
                 .SelectMany(element => element)
                 .Where(element => GmlHelper.GeometryElementNames.Contains(element.Name.LocalName))
                 .ToLookup(element => element.Name.LocalName);
+
+            IndexGeometries();
+        }
+
+        private void IndexGeometries()
+        {
+            var geoElements = GetFeatureGeometryElements();
+            var geometryIndex = new ConcurrentDictionary<string, IndexedGeometry>();
+
+            Parallel.ForEach(geoElements, element =>
+            {
+                var indexed = IndexedGeometry.Create(element);
+                geometryIndex.AddOrUpdate(indexed.XPath, indexed, (key, indexed) => indexed);
+            });
+
+            _geometryIndex = geometryIndex;
         }
 
         public static new GmlDocument Create(InputData data)

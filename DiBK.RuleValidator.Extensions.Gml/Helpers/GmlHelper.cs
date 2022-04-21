@@ -11,6 +11,9 @@ namespace DiBK.RuleValidator.Extensions.Gml
         private static readonly Regex _srsNameRegex =
             new(@"^(http:\/\/www\.opengis\.net\/def\/crs\/EPSG\/0\/|^urn:ogc:def:crs:EPSG::)(?<epsg>\d+)$", RegexOptions.Compiled);
 
+        private static readonly Regex _namespaceRegex = 
+            new(@"(?<prefix>\w+):(\w+|\*)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
         public static readonly XNamespace GmlNs = "http://www.opengis.net/gml/3.2";
 
         public static readonly string[] GeometryElementNames = new[]
@@ -38,6 +41,11 @@ namespace DiBK.RuleValidator.Extensions.Gml
             GmlGeometry.Tin,
             GmlGeometry.TriangulatedSurface
         };
+
+        public static string WildcardifyXPath(string xPath)
+        {
+            return _namespaceRegex.Replace(xPath, match => $"*:{match.Groups[1].Value}");
+        }
 
         public static string GetFeatureType(XElement element)
         {
