@@ -108,6 +108,18 @@ namespace DiBK.RuleValidator.Extensions.Gml
 
                 polygon.AddGeometry(linearRing);
             }
+            else if (ring.GetGeometryType() == wkbGeometryType.wkbLineString25D)
+            {
+                polygon = new Geometry(wkbGeometryType.wkbPolygon25D);
+                using var linearRing = new Geometry(wkbGeometryType.wkbLinearRing);
+
+                var points = ring.GetPoints();
+
+                foreach (var point in points)
+                    linearRing.AddPoint(point[0], point[1], point[2]);
+
+                polygon.AddGeometry(linearRing);
+            }
 
             return polygon;
         }
@@ -242,6 +254,9 @@ namespace DiBK.RuleValidator.Extensions.Gml
             if (!surface1.Intersects(surface2))
                 return false;
 
+            if (surface1.Touches(surface2))
+                return false;
+
             return !surface1.Within(surface2) && !surface2.Within(surface1);
         }
 
@@ -263,12 +278,23 @@ namespace DiBK.RuleValidator.Extensions.Gml
             return null;
         }
 
-        public static string GetZoomToPoint(Geometry point)
+        public static string GetZoomToPoint(Geometry point, int dimensions = 2)
         {
             var pointX = point.GetX(0).ToString(CultureInfo.InvariantCulture);
             var pointY = point.GetY(0).ToString(CultureInfo.InvariantCulture);
 
-            return $"POINT ({pointX} {pointY})";
+            if (dimensions == 2)
+            {
+                return $"POINT ({pointX} {pointY})";
+            }
+            else if (dimensions == 3)
+            {
+                var pointZ = point.GetZ(0).ToString(CultureInfo.InvariantCulture);
+
+                return $"POINT ({pointX} {pointY}, {pointZ})";
+            }
+
+            return null;
         }
 
         public static string ToWkt(Geometry geometry, int? decimals)
