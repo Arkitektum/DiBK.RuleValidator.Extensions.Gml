@@ -1,10 +1,10 @@
-﻿using OSGeo.OGR;
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using static DiBK.RuleValidator.Extensions.Gml.Constants.Namespace;
 
 namespace DiBK.RuleValidator.Extensions.Gml
 {
@@ -13,7 +13,8 @@ namespace DiBK.RuleValidator.Extensions.Gml
         private ILookup<string, XElement> _featureElements;
         private ILookup<string, XElement> _gmlElements;
         private ILookup<string, XElement> _geometryElements;
-        private ConcurrentDictionary<string, IndexedGeometry> _geometryIndex;
+        private readonly ConcurrentDictionary<XElement, IndexedGeometry> _geometries = new();
+        private ILookup<string, IndexedGeometry> _geometriesByType;
         private bool _disposed = false;
 
         public GmlDocument(XDocument document, string fileName) : this(document, fileName, null)
@@ -22,7 +23,7 @@ namespace DiBK.RuleValidator.Extensions.Gml
 
         public GmlDocument(XDocument document, string fileName, object dataType) : base(document, fileName, dataType)
         {
-            Initialize(document);
+            Initialize();
         }
 
         public List<XElement> GetFeatureElements(params string[] featureNames)
@@ -39,29 +40,46 @@ namespace DiBK.RuleValidator.Extensions.Gml
             return featureElements;
         }
 
-        public List<XElement> GetFeatureGeometryElements(params string[] geometryNames)
-        {
-            return GetGeometryElements(geometryNames, true);
-        }
-
         public List<XElement> GetGeometryElements(params string[] geometryNames)
         {
             return GetGeometryElements(geometryNames, false);
         }
 
-        public XElement GetElementByGmlId(string gmlId)
+        public List<XElement> GetFeatureGeometryElements(params string[] geometryNames)
+        {
+            return GetGeometryElements(geometryNames, true);
+        }
+
+        public ILookup<string, XElement> GetGmlElements()
+        {
+             return _gmlElements;
+        }
+
+        public XElement GetGmlElementById(string gmlId)
         {
             return _gmlElements[gmlId].SingleOrDefault();
         }
 
-        public Geometry GetOrCreateGeometry(XElement geoElement, out string errorMessage)
+        public List<IndexedGeometry> GetGeometriesByType(params string[] geometryNames)
         {
-            return GeometryHelper.GetOrCreateGeometry(_geometryIndex, geoElement, out errorMessage);
+            var geometries = new List<IndexedGeometry>();
+
+            foreach (var name in geometryNames)
+                geometries.AddRange(_geometriesByType[name]);
+
+            return geometries;
         }
 
-        public IEnumerable<IndexedGeometry> GetIndexedGeometries()
+        public IndexedGeometry GetOrCreateGeometry(XElement geoElement)
         {
-            return _geometryIndex.Select(kvp => kvp.Value);
+            if (_geometries.TryGetValue(geoElement, out var indexed))
+                return indexed;
+
+            var newIndexed = IndexedGeometry.Create(geoElement);
+
+            _geometries.TryAdd(geoElement, newIndexed);
+
+            return newIndexed;
         }
 
         public void Dispose()
@@ -76,7 +94,7 @@ namespace DiBK.RuleValidator.Extensions.Gml
             {
                 if (disposing)
                 {
-                    foreach (var index in _geometryIndex)
+                    foreach (var index in _geometries)
                     {
                         if (index.Value.Geometry != null)
                             index.Value.Geometry.Dispose();
@@ -112,45 +130,39 @@ namespace DiBK.RuleValidator.Extensions.Gml
             return geometryElements;
         }
 
-        private void Initialize(XDocument document)
+        private void Initialize()
         {
-            var localName = document.Root.Elements()
+            var localName =  Document.Root.Elements()
                 .Any(element => element.Name.LocalName == "featureMember") ? "featureMember" : "featureMembers";
 
-            _featureElements = document.Root.Elements()
+            _featureElements = Document.Root.Elements()
                 .Where(element => element.Name.LocalName == localName)
-                .SelectMany(element => element.Elements())
+                .Elements()
                 .ToLookup(element => element.Name.LocalName);
 
-            _gmlElements = document.Descendants()
-                .Where(element => element.Attributes(GmlHelper.GmlNs + "id").Any())
-                .ToLookup(element => element.Attribute(GmlHelper.GmlNs + "id").Value);
+            _gmlElements = Document.Descendants()
+                .Where(element => element.Attribute(GmlNs + "id") != null)
+                .ToLookup(element => element.Attribute(GmlNs + "id").Value);
 
             _geometryElements = _gmlElements
                 .SelectMany(element => element)
                 .Where(element => GmlHelper.GeometryElementNames.Contains(element.Name.LocalName))
                 .ToLookup(element => element.Name.LocalName);
 
-            IndexGeometries();
-        }
+            var geoElements = GetGeometryElements();
 
-        private void IndexGeometries()
-        {
-            var geoElements = GetFeatureGeometryElements();
-            var geometryIndex = new ConcurrentDictionary<string, IndexedGeometry>();
+            Parallel.ForEach(
+                geoElements, 
+                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount / 4 }, 
+                element => _geometries.TryAdd(element, IndexedGeometry.Create(element))
+            );
 
-            Parallel.ForEach(geoElements, element =>
-            {
-                var indexed = IndexedGeometry.Create(element);
-                geometryIndex.AddOrUpdate(indexed.XPath, indexed, (key, indexed) => indexed);
-            });
-
-            _geometryIndex = geometryIndex;
+            _geometriesByType = _geometries.ToLookup(kvp => kvp.Value.Type, kvp => kvp.Value);
         }
 
         public static new GmlDocument Create(InputData data)
         {
-            return new(XDocument.Load(data.Stream), data.FileName, data.DataType);
+            return new GmlDocument(XDocument.Load(data.Stream), data.FileName, data.DataType);
         }
     }
 }

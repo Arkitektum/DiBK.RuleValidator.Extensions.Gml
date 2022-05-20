@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using static DiBK.RuleValidator.Extensions.Gml.Constants.Namespace;
 
 namespace DiBK.RuleValidator.Extensions.Gml
 {
@@ -13,8 +14,6 @@ namespace DiBK.RuleValidator.Extensions.Gml
 
         private static readonly Regex _namespaceRegex = 
             new(@"(?<prefix>\w+):(\w+|\*)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-        public static readonly XNamespace GmlNs = "http://www.opengis.net/gml/3.2";
 
         public static readonly string[] GeometryElementNames = new[]
         {
@@ -112,7 +111,7 @@ namespace DiBK.RuleValidator.Extensions.Gml
         {
             return documents
                 .SingleOrDefault(document => document.FileName == fileName)
-                .GetElementByGmlId(gmlId);
+                .GetGmlElementById(gmlId);
         }
 
         public static string GetContext(XElement element)

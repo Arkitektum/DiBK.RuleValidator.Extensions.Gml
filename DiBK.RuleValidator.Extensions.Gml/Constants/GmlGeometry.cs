@@ -9,6 +9,7 @@
         public const string GeometricComplex = "GeometricComplex";
         public const string Grid = "Grid";
         public const string LineString = "LineString";
+        public const string LinearRing = "LinearRing";
         public const string MultiCurve = "MultiCurve";
         public const string MultiGeometry = "MultiGeometry";
         public const string MultiPoint = "MultiPoint";
@@ -18,6 +19,7 @@
         public const string OrientableSurface = "OrientableSurface";
         public const string Point = "Point";
         public const string Polygon = "Polygon";
+        public const string PolygonPatch = "PolygonPatch";
         public const string PolyhedralSurface = "PolyhedralSurface";
         public const string RectifiedGrid = "RectifiedGrid";
         public const string Solid = "Solid";

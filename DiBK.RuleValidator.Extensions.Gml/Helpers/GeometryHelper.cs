@@ -504,7 +504,7 @@ namespace DiBK.RuleValidator.Extensions.Gml
             }
             catch (Exception exception)
             {
-                throw new GeometryFromGMLException($"Ugyldig geometri: {geoElement.GetName()} '{geoElement.GetAttribute("gml:id")}'. Detaljert feil: {_exceptionRegex.Replace(exception.Message, "")}");
+                throw new GeometryFromGMLException($"{GmlHelper.GetNameAndId(geoElement)}: Elementet har ugyldig geometri: {_exceptionRegex.Replace(exception.Message, "")}");
             }
         }
 
