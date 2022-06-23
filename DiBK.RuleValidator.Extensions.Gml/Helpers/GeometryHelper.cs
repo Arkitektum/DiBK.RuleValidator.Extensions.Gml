@@ -87,6 +87,11 @@ namespace DiBK.RuleValidator.Extensions.Gml
             return CreatePolygon(points, epsg);
         }
 
+        public static Geometry CreatePolygonFromRing(Ring ring)
+        {
+            return Geometry.CreateFromWkt($"CURVEPOLYGON ({ring.ToWkt()})");
+        }
+
         public static Geometry CreatePolygonFromRing(Geometry ring)
         {
             Geometry polygon = null;
@@ -390,7 +395,7 @@ namespace DiBK.RuleValidator.Extensions.Gml
             };
         }
 
-        public static List<Surface> ConvertSegmentsToSurfaces(IEnumerable<Segment> segments)
+        public static DisposableList<Surface> ConvertSegmentsToSurfaces(IEnumerable<Segment> segments)
         {
             var rings = new List<Ring> { new Ring() };
             var firstSegment = segments.First();
@@ -430,13 +435,13 @@ namespace DiBK.RuleValidator.Extensions.Gml
                 }
             }
 
-            List<Surface> surfaces;
+            DisposableList<Surface> surfaces;
 
             if (rings.Count == 1)
             {
                 var exterior = rings.Single();
                 exterior.IsExterior = true;
-                surfaces = new List<Surface> { new Surface { Exterior = exterior } };
+                surfaces = new DisposableList<Surface> { new Surface { Exterior = exterior } };
             }
             else
             {
@@ -446,10 +451,10 @@ namespace DiBK.RuleValidator.Extensions.Gml
             return surfaces;
         }
 
-        public static List<Surface> ConvertRingsToSurfaces(List<Ring> rings)
+        public static DisposableList<Surface> ConvertRingsToSurfaces(List<Ring> rings)
         {
             foreach (var ring in rings)
-                ring.Envelope = CreateEnvelope(ring);
+                ring.Polygon = CreatePolygonFromRing(ring);
 
             for (var i = 0; i < rings.Count; i++)
             {
@@ -460,7 +465,7 @@ namespace DiBK.RuleValidator.Extensions.Gml
                 {
                     var otherRing = otherRings[j];
 
-                    if (ring.Envelope.Within(otherRing.Envelope))
+                    if (ring.Polygon.Within(otherRing.Polygon))
                         rings.SingleOrDefault(rng => rng == ring).WithinRings.Add(otherRing);
                 }
             }
@@ -471,7 +476,7 @@ namespace DiBK.RuleValidator.Extensions.Gml
                 ring.WithinRings.RemoveAll(ring => !ring.IsExterior);
             }
 
-            var surfaces = rings.Where(ring => ring.IsExterior).Select(ring => new Surface { Exterior = ring }).ToList();
+            var surfaces = rings.Where(ring => ring.IsExterior).Select(ring => new Surface { Exterior = ring }).ToDisposableList();
             var interiors = rings.Where(ring => !ring.IsExterior).OrderBy(ring => ring.WithinRings.Count);
 
             foreach (var interior in interiors.ToList())
