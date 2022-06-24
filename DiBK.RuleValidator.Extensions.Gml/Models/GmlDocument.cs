@@ -153,7 +153,7 @@ namespace DiBK.RuleValidator.Extensions.Gml
 
             Parallel.ForEach(
                 geoElements, 
-                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount / 4 }, 
+                new ParallelOptions { MaxDegreeOfParallelism = GetMaxDegreeOfParallelism() }, 
                 element => _geometries.TryAdd(element, IndexedGeometry.Create(element))
             );
 
@@ -163,6 +163,12 @@ namespace DiBK.RuleValidator.Extensions.Gml
         public static new GmlDocument Create(InputData data)
         {
             return new GmlDocument(XDocument.Load(data.Stream), data.FileName, data.DataType);
+        }
+
+        private static int GetMaxDegreeOfParallelism()
+        {
+            var max = Environment.ProcessorCount / 4;
+            return max > 0 ? max : 1;
         }
     }
 }
