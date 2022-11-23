@@ -135,6 +135,16 @@ namespace DiBK.RuleValidator.Extensions.Gml
             return Convert.ToInt32(dimensions);
         }
 
+        public static int GetDimensions(XElement geomElement)
+        {
+            var srsDimension = geomElement.Attribute("srsDimension")?.Value;
+
+            if (srsDimension == null)
+                return 2;
+
+            return int.TryParse(srsDimension, out var dimension) ? dimension : 2;
+        }
+
         public static string GetEpsgCode(string srsName)
         {
             var match = _srsNameRegex.Match(srsName);

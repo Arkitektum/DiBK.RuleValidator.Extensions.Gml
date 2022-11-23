@@ -162,7 +162,7 @@ namespace DiBK.RuleValidator.Extensions.Gml
 
         public static new GmlDocument Create(InputData data)
         {
-            return new GmlDocument(XDocument.Load(data.Stream), data.FileName, data.DataType);
+            return new GmlDocument(XDocument.Load(data.Stream, LoadOptions.SetLineInfo), data.FileName, data.DataType);
         }
 
         private static int GetMaxDegreeOfParallelism()
