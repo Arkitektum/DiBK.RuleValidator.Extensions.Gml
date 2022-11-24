@@ -130,13 +130,26 @@ namespace DiBK.RuleValidator.Extensions.Gml
             return geometryElements;
         }
 
+        private string GetFeatureMemberName()
+        {
+            if (Document.Root.Elements().Any(element => element.Name.LocalName == "featureMember"))
+                return "featureMember";
+
+            if (Document.Root.Elements().Any(element => element.Name.LocalName == "featureMembers"))
+                return "featureMembers";
+
+            if (Document.Root.Elements().Any(element => element.Name.LocalName == "member"))
+                return "member";
+
+            return "featureMember";
+        }
+
         private void Initialize()
         {
-            var localName =  Document.Root.Elements()
-                .Any(element => element.Name.LocalName == "featureMember") ? "featureMember" : "featureMembers";
+            var featureMemberName = GetFeatureMemberName();
 
             _featureElements = Document.Root.Elements()
-                .Where(element => element.Name.LocalName == localName)
+                .Where(element => element.Name.LocalName == featureMemberName)
                 .Elements()
                 .ToLookup(element => element.Name.LocalName);
 

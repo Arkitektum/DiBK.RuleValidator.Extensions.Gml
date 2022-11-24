@@ -60,7 +60,9 @@ namespace DiBK.RuleValidator.Extensions.Gml
         public static XElement GetFeatureElement(XElement element)
         {
             return element.AncestorsAndSelf()
-                .FirstOrDefault(element => element.Parent.Name.LocalName == "featureMember" || element.Parent.Name.LocalName == "featureMembers");
+                .FirstOrDefault(element => element.Parent.Name.LocalName == "featureMember" || 
+                    element.Parent.Name.LocalName == "featureMembers" ||
+                    element.Parent.Name.LocalName == "member");
         }
 
         public static XElement GetFeatureGeometryElement(XElement element)
