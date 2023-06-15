@@ -196,10 +196,10 @@ namespace DiBK.RuleValidator.Extensions.Gml
             if (posList == null)
                 throw new Exception("Element gml:posList eksisterer ikke");
 
-            var posStrings = posList.Split(" ", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            var posStrings = posList.Split(new string[] { " ", "\r\n", "\r", "\n" }, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
             if (posStrings.Length == 0 || posStrings.Length % dimensions != 0)
-                throw new Exception($"Element gml:posList har ugyldig antall koordinater: '{posStrings.Length}'");
+                throw new Exception($"Element gml:posList har ugyldig antall koordinater: {posStrings.Length}");
 
             static double posStringToDouble(string posString)
             {
