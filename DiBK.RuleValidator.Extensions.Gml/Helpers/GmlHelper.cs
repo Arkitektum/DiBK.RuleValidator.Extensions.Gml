@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using static DiBK.RuleValidator.Extensions.Gml.Constants.Namespace;
@@ -17,6 +18,7 @@ namespace DiBK.RuleValidator.Extensions.Gml
 
         public static readonly string[] GeometryElementNames = new[]
         {
+            GmlGeometry.Arc,
             GmlGeometry.CompositeCurve,
             GmlGeometry.CompositeSolid,
             GmlGeometry.CompositeSurface,
@@ -130,21 +132,31 @@ namespace DiBK.RuleValidator.Extensions.Gml
             return $"{element.GetName()}{(!string.IsNullOrWhiteSpace(gmlId) ? $" '{gmlId}'" : "")}";
         }
 
-        public static int GetDimensions(GmlDocument document)
+        public static int? GetDimension(GmlDocument document)
         {
-            var dimensions = document.Document.Root.GetElement("*:boundedBy/*:Envelope").GetAttribute("srsDimension");
+            return GetDimension(document.Document);
+        }
+
+        public static int? GetDimension(XDocument document)
+        {
+            var dimensions = document.Root.Element(GmlNs + "boundedBy").Element(GmlNs + "Envelope").Attribute("srsDimension")?.Value;
 
             return Convert.ToInt32(dimensions);
         }
 
-        public static int GetDimensions(XElement geomElement)
+        public static int? GetDimension(XElement geomElement)
         {
-            var srsDimension = geomElement.Attribute("srsDimension")?.Value;
+            var dimension = geomElement.Attribute("srsDimension")?.Value;
 
-            if (srsDimension == null)
-                return 2;
+            if (dimension != null)
+                return Convert.ToInt32(dimension);
 
-            return int.TryParse(srsDimension, out var dimension) ? dimension : 2;
+            var parentElement = geomElement.Parent;
+
+            if (!parentElement.Name.Namespace.Equals(GmlNs))
+                return GetDimension(parentElement.Document);
+
+            return GetDimension(parentElement);
         }
 
         public static string GetEpsgCode(string srsName)

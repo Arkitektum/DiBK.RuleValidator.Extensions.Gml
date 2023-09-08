@@ -18,7 +18,7 @@ namespace DiBK.RuleValidator.Extensions.Gml
             });
         }
 
-        public static void AddMessage(this ExecutableRule rule, string message, string fileName, IEnumerable<string> xPaths, IEnumerable<string> gmlIds, string lineNumber, string linePosition)
+        public static void AddMessage(this ExecutableRule rule, string message, string fileName, IEnumerable<string> xPaths, IEnumerable<string> gmlIds, int lineNumber, int linePosition)
         {
             rule.AddMessage(new RuleMessage
             {
@@ -49,7 +49,7 @@ namespace DiBK.RuleValidator.Extensions.Gml
             });
         }
 
-        public static void AddMessage(this ExecutableRule rule, string message, string fileName, IEnumerable<string> xPaths, IEnumerable<string> gmlIds, string lineNumber, string linePosition, string zoomTo)
+        public static void AddMessage(this ExecutableRule rule, string message, string fileName, IEnumerable<string> xPaths, IEnumerable<string> gmlIds, int lineNumber, int linePosition, string zoomTo)
         {
             rule.AddMessage(new RuleMessage
             {

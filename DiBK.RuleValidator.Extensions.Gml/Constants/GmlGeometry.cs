@@ -2,6 +2,7 @@
 {
     public static class GmlGeometry
     {
+        public const string Arc = "Arc";
         public const string CompositeCurve = "CompositeCurve";
         public const string CompositeSolid = "CompositeSolid";
         public const string CompositeSurface = "CompositeSurface";

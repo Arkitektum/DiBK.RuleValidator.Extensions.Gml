@@ -95,10 +95,7 @@ namespace DiBK.RuleValidator.Extensions.Gml
                 if (disposing)
                 {
                     foreach (var index in _geometries)
-                    {
-                        if (index.Value.Geometry != null)
-                            index.Value.Geometry.Dispose();
-                    }
+                        index.Value.Geometry?.Dispose();
                 }
 
                 _disposed = true;
@@ -157,8 +154,9 @@ namespace DiBK.RuleValidator.Extensions.Gml
                 .Where(element => element.Attribute(GmlNs + "id") != null)
                 .ToLookup(element => element.Attribute(GmlNs + "id").Value);
 
-            _geometryElements = _gmlElements
+            _geometryElements = _featureElements
                 .SelectMany(element => element)
+                .Descendants()
                 .Where(element => GmlHelper.GeometryElementNames.Contains(element.Name.LocalName))
                 .ToLookup(element => element.Name.LocalName);
 

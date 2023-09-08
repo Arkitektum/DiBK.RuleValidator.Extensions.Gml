@@ -172,6 +172,42 @@ namespace DiBK.RuleValidator.Extensions.Gml
             return multiPolygon.UnionCascaded();
         }
 
+        public static List<double[]> GetPoints(Geometry geometry)
+        {
+            var pointCount = geometry.GetPointCount();
+            var points = new List<double[]>();
+
+            for (var i = 0; i < pointCount; i++)
+            {
+                var point = new double[3];
+                geometry.GetPoint(i, point);
+                points.Add(point);
+            }
+
+            return points;
+        }
+
+        public static DisposableList<Geometry> GetPointGeometries(Geometry geometry)
+        {
+            var points = GetPoints(geometry);
+            var pointGeoms = new DisposableList<Geometry>();
+
+            foreach (var point in points)
+            {
+                try
+                {
+                    var geom = CreatePoint(point[0], point[1], point[2]);
+                    pointGeoms.Add(geom);
+                }
+                catch
+                {
+                    pointGeoms.Add(null);
+                }
+            }
+
+            return pointGeoms;
+        }
+
         public static List<string> GetPosLists(XElement geoElement)
         {
             return geoElement.GetValues<string>("//*:posList | //*:pos").ToList();
@@ -364,6 +400,19 @@ namespace DiBK.RuleValidator.Extensions.Gml
 
             return pointsA[1][0] == pointsB[0][0] && pointsA[1][1] == pointsB[0][1] ||
                 pointsA[0][0] == pointsB[1][0] && pointsA[0][1] == pointsB[1][1];
+        }
+
+        public static Circle PointsToCircle(Geometry p1, Geometry p2, Geometry p3)
+        {
+            var point1 = new double[3];
+            var point2 = new double[3];
+            var point3 = new double[3];
+
+            p1.GetPoint(0, point1);
+            p2.GetPoint(0, point2);
+            p3.GetPoint(0, point3);
+
+            return PointsToCircle(point1, point2, point3);
         }
 
         public static Circle PointsToCircle(double[] p1, double[] p2, double[] p3)
